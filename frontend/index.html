@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShipFlow - تسجيل الدخول</title>
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- خط عربي -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-900 to-gray-900 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+        
+        <!-- الشعار والعنوان -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-blue-600 mb-2">ShipFlow</h1>
+            <p class="text-gray-500 text-sm">نظام إدارة الشحن</p>
+        </div>
+
+        <!-- رسالة الخطأ (مخفية في البداية) -->
+        <div id="errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm"></div>
+
+        <!-- نموذج الدخول -->
+        <form id="loginForm" class="space-y-5">
+            <div>
+                <label class="block text-gray-700 font-semibold mb-2">اسم المستخدم</label>
+                <input type="text" id="username" required
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                       placeholder="أدخل اسم المستخدم" value="admin">
+            </div>
+
+            <div>
+                <label class="block text-gray-700 font-semibold mb-2">كلمة المرور</label>
+                <input type="password" id="password" required
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                       placeholder="أدخل كلمة المرور" value="Admin12345">
+            </div>
+
+            <button type="submit" id="loginBtn"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition duration-200 flex justify-center items-center">
+                <span id="btnText">تسجيل الدخول</span>
+                <svg id="loadingSpinner" class="hidden animate-spin ml-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </button>
+        </form>
+
+        <!-- بيانات تجريبية -->
+        <div class="mt-8 pt-6 border-t border-gray-200 text-center">
+            <p class="text-xs text-gray-400 mb-2">حسابات تجريبية:</p>
+            <div class="flex justify-center gap-4 text-xs">
+                <button onclick="fillCredentials('admin', 'Admin12345')" class="text-blue-500 hover:underline">مدير (Admin)</button>
+                <button onclick="fillCredentials('operator', 'Operator12345')" class="text-blue-500 hover:underline">مستخدم (User)</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        const API_URL = 'http://localhost:5074/api/auth';
+
+        // تعبئة سريعة للحسابات
+        function fillCredentials(username, password) {
+            document.getElementById('username').value = username;
+            document.getElementById('password').value = password;
+        }
+
+        // معالجة تقديم النموذج
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const btn = document.getElementById('loginBtn');
+            const btnText = document.getElementById('btnText');
+            const spinner = document.getElementById('loadingSpinner');
+
+            // تصفير الحالة
+            errorDiv.classList.add('hidden');
+            btn.disabled = true;
+            btn.classList.add('opacity-75', 'cursor-not-allowed');
+            btnText.textContent = 'جاري التحقق...';
+            spinner.classList.remove('hidden');
+
+            try {
+                const response = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // نجاح: حفظ التوكن والبيانات
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    localStorage.setItem('expiresAt', data.expiresAt);
+
+                    // الانتقال للوحة التحكم (سننشئها لاحقاً)
+                    window.location.href = 'dashboard.html';
+                } else {
+                    // فشل: عرض رسالة الخطأ من الـ API
+                    let errorMsg = 'حدث خطأ غير متوقع.';
+                    if (data.errors) {
+                        // إذا كان هناك أخطاء validation (مثل بيانات دخول غير صحيحة)
+                        const firstKey = Object.keys(data.errors)[0];
+                        errorMsg = data.errors[firstKey][0];
+                    } else if (data.detail) {
+                        errorMsg = data.detail;
+                    }
+                    errorDiv.textContent = errorMsg;
+                    errorDiv.classList.remove('hidden');
+                }
+            } catch (error) {
+                errorDiv.textContent = 'تعذر الاتصال بالخادم. تأكد من تشغيل الـ API.';
+                errorDiv.classList.remove('hidden');
+            } finally {
+                // إعادة الحالة الطبيعية
+                btn.disabled = false;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+                btnText.textContent = 'تسجيل الدخول';
+                spinner.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -19,7 +19,7 @@ using ShipFlow.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1) Database + ApplicationDbContext
+// 1) Database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -46,8 +46,7 @@ builder.Services.Configure<JwtSettings>(
 var jwtSettings = builder.Configuration
     .GetSection(JwtSettings.SectionName)
     .Get<JwtSettings>()
-    ?? throw new InvalidOperationException(
-        "قسم Jwt غير موجود في appsettings.Development.json — لا يمكن تشغيل المصادقة.");
+    ?? throw new InvalidOperationException("قسم Jwt غير موجود.");
 
 builder.Services
     .AddAuthentication(options =>
@@ -74,10 +73,21 @@ builder.Services
 // 6) Authorization
 builder.Services.AddAuthorization();
 
-// 7) Validators
+// 7) CORS (للسماح للـFrontend بالاتصال)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
+// 8) Validators
 builder.Services.AddValidatorsFromAssembly(typeof(IApplicationDbContext).Assembly);
 
-// 8) Controllers + Filters + JSON
+// 9) Controllers + Filters + JSON
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ValidationFilter>();
@@ -87,7 +97,7 @@ builder.Services.AddControllers(options =>
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
-// 9) Swagger مع Bearer
+// 10) Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -98,7 +108,7 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "Bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "ألصق التوكن فقط (بدون كلمة Bearer — Swagger يضيفها تلقائياً)."
+        Description = "ألصق التوكن فقط (بدون Bearer)."
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -137,6 +147,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// ⚠️ CORS يجب أن يكون قبل Authentication و Authorization
+app.UseCors("AllowAll");
 
 app.UseAuthentication();
 app.UseAuthorization();
