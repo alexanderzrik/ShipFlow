@@ -1,6 +1,13 @@
 # ShipFlow
 
 نظام إدارة شحن بـ .NET 8 + Clean Architecture.
+## 📸 لقطات الشاشة
+
+### صفحة تسجيل الدخول
+![صفحة تسجيل الدخول /login](images/login.png)
+
+### لوحة التحكم
+![لوحة التحكم dashboard](images/dashboard.png)
 
 ## التقنيات
 - .NET 8, EF Core 8, SQL Server
