@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إشعار استلام بضاعة - طيارة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background: #f3f4f6; }
+        @media print {
+            body { background: white; margin: 0; padding: 0; }
+            .no-print { display: none !important; }
+            .print-container { box-shadow: none !important; border: none !important; max-width: 100% !important; margin: 0 !important; }
+        }
+    </style>
+</head>
+<body class="p-8 flex flex-col items-center">
+
+    <div class="no-print mb-6 flex gap-4">
+        <button onclick="window.print()" class="bg-[#eab308] text-[#0f172a] px-8 py-3 rounded-lg font-bold shadow hover:bg-[#ca8a04]">طباعة الإشعار</button>
+        <button onclick="window.close()" class="bg-gray-500 text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-gray-600">إغلاق</button>
+    </div>
+
+    <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-300 w-full max-w-3xl print-container">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-center border-b-4 border-[#0f172a] pb-4 mb-6">
+            <div class="text-right">
+                <h1 class="text-4xl font-bold text-[#0f172a]">طيارة</h1>
+                <p class="text-gray-500 font-semibold">لإدارة الشحن</p>
+            </div>
+            <img src="logo.png" alt="Logo" class="w-24 h-24 object-contain">
+            <div class="text-left">
+                <p class="text-sm font-bold text-gray-600">رقم الإشعار:</p>
+                <p class="text-xl font-mono font-bold text-[#eab308]" id="p_tracking">...</p>
+                <p class="text-sm font-bold text-gray-600 mt-2">تاريخ الاستلام:</p>
+                <p class="font-semibold" id="p_date">...</p>
+            </div>
+        </div>
+
+        <div class="text-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 border-2 border-gray-800 inline-block px-6 py-1 rounded-lg">إشعار استلام بضاعة</h2>
+        </div>
+
+        <!-- Details -->
+        <div class="grid grid-cols-2 gap-6 mb-8">
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h3 class="font-bold text-[#0f172a] mb-3 border-b pb-2">بيانات الزبون / المرسل</h3>
+                <p><span class="text-gray-500 font-semibold">الاسم:</span> <span id="p_sender">...</span></p>
+                <p><span class="text-gray-500 font-semibold">الهاتف:</span> <span id="p_sender_phone">...</span></p>
+            </div>
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h3 class="font-bold text-[#0f172a] mb-3 border-b pb-2">بيانات المستلم</h3>
+                <p><span class="text-gray-500 font-semibold">الاسم:</span> <span id="p_receiver">...</span></p>
+                <p><span class="text-gray-500 font-semibold">الهاتف:</span> <span id="p_phone">...</span></p>
+                <p><span class="text-gray-500 font-semibold">الوجهة:</span> <span id="p_dest">...</span></p>
+            </div>
+        </div>
+
+        <!-- Items table -->
+        <table class="w-full text-right border-collapse border border-gray-300 mb-8">
+            <thead>
+                <tr class="bg-[#0f172a] text-white">
+                    <th class="border border-gray-300 p-3">الوصف</th>
+                    <th class="border border-gray-300 p-3">الوزن</th>
+                    <th class="border border-gray-300 p-3">ملاحظات</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="border border-gray-300 p-3 font-semibold" id="p_desc">...</td>
+                    <td class="border border-gray-300 p-3" id="p_weight">...</td>
+                    <td class="border border-gray-300 p-3 text-sm text-gray-600" id="p_notes">...</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Warning Note -->
+        <div class="bg-yellow-50 border border-yellow-300 p-4 rounded-lg mb-8 text-sm text-yellow-800">
+            <strong>ملاحظة هامة:</strong> هذا الإشعار يثبت فقط استلام البضاعة في مستودع الشركة. البضاعة تخضع لشروط وأحكام الشركة. يرجى الاحتفاظ بهذا الإشعار حتى استلام البضاعة.
+        </div>
+
+        <!-- Signatures -->
+        <div class="flex justify-between mt-12 px-8">
+            <div class="text-center">
+                <p class="font-bold mb-8">توقيع الموظف المستلم</p>
+                <div class="border-t border-black w-32"></div>
+            </div>
+            <div class="text-center">
+                <p class="font-bold mb-8">توقيع الزبون / المرسل</p>
+                <div class="border-t border-black w-32"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const urlParams = new URLSearchParams(window.location.search);
+        const packageId = urlParams.get('id');
+
+        if (!token || !packageId) {
+            alert('غير مصرح أو رقم بضاعة غير موجود');
+            window.close();
+        }
+
+        async function loadData() {
+            try {
+                // جلب بيانات البضاعة
+                const res = await fetch(`http://localhost:5074/api/packages/${packageId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if(!res.ok) throw new Error('فشل جلب البيانات');
+                
+                const pkg = await res.json();
+                
+                document.getElementById('p_tracking').textContent = pkg.trackingNumber;
+                document.getElementById('p_date').textContent = new Date(pkg.createdAt).toLocaleString('ar-SY');
+                document.getElementById('p_sender').textContent = pkg.customerName;
+                // ملاحظة: بيانات هاتف المرسل غير متوفرة حالياً في PackageDto، قد نضيفها لاحقاً
+                document.getElementById('p_sender_phone').textContent = '-'; 
+                document.getElementById('p_receiver').textContent = pkg.receiverName;
+                document.getElementById('p_phone').textContent = pkg.receiverPhone;
+                document.getElementById('p_dest').textContent = pkg.destinationCity;
+                document.getElementById('p_desc').textContent = pkg.description;
+                document.getElementById('p_weight').textContent = pkg.weight + ' كغ';
+                document.getElementById('p_notes').textContent = pkg.notes || 'لا يوجد';
+            } catch (err) {
+                alert('حدث خطأ في تحميل البيانات');
+            }
+        }
+        
+        loadData();
+    </script>
+</body>
+</html>

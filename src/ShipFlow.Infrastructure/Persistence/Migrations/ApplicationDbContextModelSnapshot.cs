@@ -41,6 +41,11 @@ namespace ShipFlow.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("DeliveryFee")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("DeliveryFeeCurrency")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<DateTime>("IssuedAt")
                         .HasColumnType("datetime2");
 
@@ -69,6 +74,32 @@ namespace ShipFlow.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_BillOfLadings_PackageId");
 
                     b.ToTable("BillOfLadings", (string)null);
+                });
+
+            modelBuilder.Entity("ShipFlow.Domain.Entities.CurrencyRate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Currency")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("RateToSyp")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Currency")
+                        .IsUnique()
+                        .HasDatabaseName("IX_CurrencyRates_Currency");
+
+                    b.ToTable("CurrencyRates", (string)null);
                 });
 
             modelBuilder.Entity("ShipFlow.Domain.Entities.Customer", b =>
@@ -133,6 +164,19 @@ namespace ShipFlow.Infrastructure.Persistence.Migrations
 
                     b.Property<int>("CustomerId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("DeliveryFee")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<int>("DeliveryFeeCurrency")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
 
                     b.Property<string>("Description")
                         .IsRequired()

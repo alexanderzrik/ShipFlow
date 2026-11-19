@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>طيارة - لوحة التحكم</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex"><div id="sidebarOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden" onclick="toggleSidebar()"></div>
+
+    <!-- القائمة الجانبية -->
+    <aside id="sidebar" class="w-64 bg-[#0f172a] text-white flex flex-col fixed h-full right-0 z-40 shadow-xl transform translate-x-full lg:translate-x-0 transition-transform duration-300">
+        <div class="p-4 text-center border-b border-gray-800">
+            <img src="logo.png" alt="Logo" class="w-16 h-16 mx-auto mb-1 rounded-full bg-white object-contain p-1 shadow-md">
+            <h1 class="text-xl font-bold text-[#eab308]">طيارة</h1>
+        </div>
+        <nav class="flex-1 p-2 space-y-1 mt-2 overflow-y-auto no-scrollbar">
+            <button onclick="loadData('dashboard')" class="nav-btn w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-gray-800 transition flex items-center gap-2"><span>🏠</span> لوحة القيادة</button>
+            <button onclick="loadData('customers')" class="nav-btn w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-gray-800 transition flex items-center gap-2"><span>👥</span> الزبائن</button>
+            <button onclick="loadData('packages')" class="nav-btn w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-gray-800 transition flex items-center gap-2"><span>📦</span> البضائع</button>
+            <button onclick="loadData('shipments')" class="nav-btn w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-gray-800 transition flex items-center gap-2"><span>🚚</span> الشحنات</button>
+            <button onclick="loadData('billofladings')" class="nav-btn w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-gray-800 transition flex items-center gap-2"><span>📄</span> بوالص الشحن</button>
+            <button id="currencyNavBtn" onclick="loadData('currencyrates')" class="nav-btn w-full text-right px-3 py-2 text-sm rounded-lg hover:bg-gray-800 transition flex items-center gap-2 hidden"><span>💵</span> العملات</button>
+        </nav>
+        <div class="p-3 border-t border-gray-800">
+            <div class="flex items-center gap-2 mb-3">
+                <div class="w-8 h-8 bg-[#eab308] text-[#0f172a] rounded-full flex items-center justify-center text-sm font-bold" id="userAvatar">A</div>
+                <div>
+                    <p class="text-xs font-semibold" id="userName">جاري التحميل...</p>
+                    <p class="text-[10px] text-gray-400" id="userRole">...</p>
+                </div>
+            </div>
+            <button onclick="logout()" class="w-full bg-red-600 hover:bg-red-700 text-white py-1.5 rounded-lg text-xs transition">تسجيل الخروج</button>
+        </div>
+    </aside>
+
+    <!-- المحتوى الرئيسي -->
+    <button onclick="toggleSidebar()" class="lg:hidden fixed top-4 left-4 z-40 bg-[#0f172a] text-white p-3 rounded-lg shadow-xl"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button><main class="flex-1 lg:mr-64 p-3 sm:p-4 lg:p-8 w-full">
+        <header class="flex justify-between items-center mb-4 lg:mb-8 gap-2 flex-wrap">
+            <h2 class="text-3xl font-bold text-[#0f172a]" id="pageTitle">لوحة القيادة</h2>
+            <div class="flex items-center gap-4">
+                <button id="addBtn" onclick="openAddModal()" class="bg-[#eab308] hover:bg-[#ca8a04] text-[#0f172a] px-6 py-2 rounded-lg font-bold transition flex items-center gap-2 shadow-md hidden"><span>+</span> إضافة جديد</button>
+                <div class="text-sm text-gray-500 font-semibold" id="clock"></div>
+            </div>
+        </header>
+
+        <div id="alertBox" class="hidden mb-4 p-4 rounded-lg"></div>
+
+        <!-- ================= قسم لوحة القيادة ================= -->
+        <div id="dashboardSection">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+                <div onclick="loadData('customers')" class="bg-white rounded-xl shadow-md p-6 border-r-4 border-blue-500 cursor-pointer hover:shadow-lg transition">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-gray-500 font-semibold text-sm mb-1">إجمالي الزبائن</p>
+                            <p class="text-4xl font-bold text-[#0f172a]" id="statCustomers">0</p>
+                        </div>
+                        <span class="text-4xl">👥</span>
+                    </div>
+                </div>
+
+                <div onclick="loadData('packages')" class="bg-white rounded-xl shadow-md p-6 border-r-4 border-[#eab308] cursor-pointer hover:shadow-lg transition">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-gray-500 font-semibold text-sm mb-1">إجمالي البضائع</p>
+                            <p class="text-4xl font-bold text-[#0f172a]" id="statPackages">0</p>
+                            <p class="text-xs text-gray-400 mt-1"><span id="statDelivered">0</span> تم التسليم • <span id="statPending">0</span> قيد المعالجة</p>
+                        </div>
+                        <span class="text-4xl">📦</span>
+                    </div>
+                </div>
+
+                <div onclick="loadData('shipments')" class="bg-white rounded-xl shadow-md p-6 border-r-4 border-green-500 cursor-pointer hover:shadow-lg transition">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-gray-500 font-semibold text-sm mb-1">الشحنات النشطة</p>
+                            <p class="text-4xl font-bold text-[#0f172a]"><span id="statActiveShipments">0</span></p>
+                            <p class="text-xs text-gray-400 mt-1">من أصل <span id="statShipments">0</span> شحنة</p>
+                        </div>
+                        <span class="text-4xl">🚚</span>
+                    </div>
+                </div>
+
+                <!-- بطاقة الإيرادات (مخفية عن الموظف) -->
+                <div id="revenueCard" class="bg-gradient-to-br from-[#0f172a] to-[#1e293b] rounded-xl shadow-md p-6 text-white hidden">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-gray-300 font-semibold text-sm mb-1">إجمالي الإيرادات</p>
+                            <p class="text-3xl font-bold text-[#eab308]" id="statRevenue">0</p>
+                            <p class="text-xs text-gray-400 mt-1" id="statRevenueUsd">≈ 0 USD</p>
+                        </div>
+                        <span class="text-4xl">💰</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white rounded-xl shadow-md p-6">
+                    <h3 class="text-lg font-bold text-[#0f172a] mb-4 border-b pb-2">البضائع حسب الحالة</h3>
+                    <canvas id="statusChart" height="200"></canvas>
+                </div>
+                <!-- رسم بياني للإيرادات (مخفي عن الموظف) -->
+                <div id="revenueChartContainer" class="bg-white rounded-xl shadow-md p-6 hidden">
+                    <h3 class="text-lg font-bold text-[#0f172a] mb-4 border-b pb-2">توزيع الإيرادات حسب العملة</h3>
+                    <canvas id="revenueChart" height="200"></canvas>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-lg font-bold text-[#0f172a] mb-4 border-b pb-2">🏆 أفضل 5 زبائن (حسب عدد البضائع)</h3>
+                <div class="overflow-x-auto"><table class="w-full text-right min-w-[700px]">
+                    <thead class="text-gray-500 text-sm border-b">
+                        <tr>
+                            <th class="px-4 py-2 w-16">#</th>
+                            <th class="px-4 py-2">الزبون</th>
+                            <th class="px-4 py-2 text-center">عدد البضائع</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topCustomersBody"></tbody>
+                </table></div>
+            </div>
+        </div>
+
+        <!-- ================= قسم البحث والجدول ================= -->
+        <div id="tableSection" class="hidden">
+            <div id="filterBar" class="bg-white p-3 sm:p-4 rounded-xl shadow-sm mb-4 border border-gray-200 flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-4 items-stretch sm:items-center">
+                <div class="flex-1 min-w-[200px]">
+                    <input type="text" id="searchInput" placeholder="بحث بالاسم أو رقم التتبع..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none text-sm">
+                </div>
+                <div class="w-48">
+                    <select id="filterSelect" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none text-sm bg-white"></select>
+                </div>
+                <button onclick="applyFilters()" class="bg-[#0f172a] text-white px-6 py-2 rounded-lg font-bold text-sm hover:bg-gray-800 transition">تطبيق البحث</button>
+                <button onclick="clearFilters()" class="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-bold text-sm hover:bg-gray-300 transition">إلغاء البحث (الكل)</button>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div class="overflow-x-auto"><table class="w-full text-right min-w-[700px]">
+                    <thead class="bg-[#0f172a] text-white text-sm"><tr id="tableHeader"></tr></thead>
+                    <tbody id="tableBody" class="divide-y divide-gray-100 text-sm text-gray-700"></tbody>
+                </table></div>
+                <div id="emptyState" class="hidden p-12 text-center text-gray-500 font-semibold">لا توجد بيانات مطابقة لبحثك.</div>
+            </div>
+            <div class="mt-6 flex justify-between items-center text-sm text-gray-600 font-semibold" id="paginationBar">
+                <div id="pageInfo">الصفحة 1 من 1</div>
+                <div class="flex gap-2">
+                    <button onclick="changePage(-1)" id="prevBtn" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition">السابق</button>
+                    <button onclick="changePage(1)" id="nextBtn" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition">التالي</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- النوافذ المنبثقة -->
+    <div id="modalBackdrop" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto border-t-8 border-[#eab308]">
+            <h3 class="text-2xl font-bold text-[#0f172a] mb-6" id="modalTitle">إضافة</h3>
+            <form id="modalForm" class="space-y-4">
+                <input type="hidden" id="editId">
+                
+                <div id="form_customers" class="hidden space-y-4">
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">الاسم الكامل</label><input type="text" id="cust_fullName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></div>
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">رقم الهاتف</label><input type="text" id="cust_phoneNumber" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></div>
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">العنوان (اختياري)</label><input type="text" id="cust_address" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></div>
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">ملاحظات (اختياري)</label><textarea id="cust_notes" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></textarea></div>
+                    <div id="cust_isActiveGroup" class="hidden"><label class="flex items-center gap-2 text-gray-700 font-semibold text-sm"><input type="checkbox" id="cust_isActive" class="w-4 h-4 accent-[#eab308]"> حساب نشط</label></div>
+                </div>
+
+                <div id="form_packages" class="hidden space-y-4">
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">الوصف</label><input type="text" id="pkg_description" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></div>
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">الوزن (كغ)</label><input type="number" step="0.01" id="pkg_weight" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></div>
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">اسم المستلم</label><input type="text" id="pkg_receiverName" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></div>
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">رقم هاتف المستلم</label><input type="text" id="pkg_receiverPhone" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></div>
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">مدينة الوجهة</label><input type="text" id="pkg_destinationCity" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></div>
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">ملاحظات (اختياري)</label><textarea id="pkg_notes" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></textarea></div>
+                    <div id="pkg_customerGroup"><label class="block text-gray-700 font-semibold mb-1 text-sm">الزبون المالك</label><select id="pkg_customerId" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none bg-white"></select></div>
+                </div>
+
+                <div id="form_shipments" class="hidden space-y-4">
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">مدينة الانطلاق</label><input type="text" id="shp_fromCity" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></div>
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">مدينة الوصول</label><input type="text" id="shp_toCity" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></div>
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">اسم السائق (اختياري)</label><input type="text" id="shp_driverName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></div>
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">رقم هاتف السائق (اختياري)</label><input type="text" id="shp_driverPhone" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></div>
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">رقم المركبة (اختياري)</label><input type="text" id="shp_vehicleNumber" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></div>
+                    <div id="shp_statusGroup" class="hidden">
+                        <label class="block text-gray-700 font-semibold mb-1 text-sm">حالة الشحنة</label>
+                        <select id="shp_status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none bg-white">
+                            <option value="Loading">Loading (قيد التجميع)</option>
+                            <option value="Departed">Departed (انطلقت)</option>
+                            <option value="InTransit">InTransit (في الطريق)</option>
+                            <option value="Arrived">Arrived (وصلت)</option>
+                            <option value="Closed">Closed (مغلقة)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="form_billofladings" class="hidden space-y-4">
+                    <div id="bol_packageGroup"><label class="block text-gray-700 font-semibold mb-1 text-sm">البضاعة المرتبطة</label><select id="bol_packageId" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none bg-white"></select></div>
+                    <div class="flex gap-2">
+                        <div class="flex-1">
+                            <label class="block text-gray-700 font-semibold mb-1 text-sm">أجرة التوصيل</label>
+                            <input type="number" step="0.01" id="bol_deliveryFee" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none">
+                        </div>
+                        <div class="w-1/3">
+                            <label class="block text-gray-700 font-semibold mb-1 text-sm">العملة</label>
+                            <select id="bol_currency" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none bg-white">
+                                <option value="SYP">ل.س</option>
+                                <option value="USD">دولار</option>
+                                <option value="EUR">يورو</option>
+                                <option value="TRY">تركية</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">اسم الموظف المُصدر (اختياري)</label><input type="text" id="bol_issuedBy" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></div>
+                    <div><label class="block text-gray-700 font-semibold mb-1 text-sm">ملاحظات (اختياري)</label><textarea id="bol_notes" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none"></textarea></div>
+                </div>
+
+                <div id="modalActions" class="flex justify-end gap-3 mt-8 border-t pt-4">
+                    <button type="button" onclick="closeModal()" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">إلغاء</button>
+                    <button type="submit" class="px-6 py-2 bg-[#eab308] text-[#0f172a] font-bold rounded-lg hover:bg-[#ca8a04] transition" id="saveBtn">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="deliverModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 border-t-8 border-green-600">
+            <h3 class="text-2xl font-bold text-gray-800 mb-4 text-center">تسليم البضاعة</h3>
+            <form id="deliverForm" class="space-y-4">
+                <input type="hidden" id="deliverPackageId">
+                <div class="flex gap-2">
+                    <div class="flex-1">
+                        <label class="block text-gray-700 font-semibold mb-1 text-sm">أجرة التوصيل</label>
+                        <input type="number" step="0.01" id="deliverFee" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+                    </div>
+                    <div class="w-1/3">
+                        <label class="block text-gray-700 font-semibold mb-1 text-sm">العملة</label>
+                        <select id="deliverCurrency" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 outline-none bg-white">
+                            <option value="SYP">ل.س</option>
+                            <option value="USD">دولار</option>
+                            <option value="EUR">يورو</option>
+                            <option value="TRY">تركية</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" onclick="document.getElementById('deliverModal').classList.add('hidden')" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">إلغاء</button>
+                    <button type="submit" class="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700">تأكيد التسليم</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="currencyModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 border-t-8 border-[#eab308]">
+            <h3 class="text-2xl font-bold text-[#0f172a] mb-4 text-center">تحديث سعر الصرف</h3>
+            <form id="currencyForm" class="space-y-4">
+                <input type="hidden" id="editCurrencyType">
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-1 text-sm">السعر مقابل الليرة السورية</label>
+                    <input type="number" step="0.01" id="editCurrencyRate" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#eab308] outline-none">
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" onclick="document.getElementById('currencyModal').classList.add('hidden')" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">إلغاء</button>
+                    <button type="submit" class="px-4 py-2 bg-[#eab308] text-[#0f172a] font-bold rounded-lg hover:bg-[#ca8a04]">حفظ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function toggleSidebar() { const s = document.getElementById('sidebar'); const o = document.getElementById('sidebarOverlay'); s.classList.toggle('translate-x-full'); o.classList.toggle('hidden'); }
+        const API_BASE = '/api';
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user'));
+        const isAdmin = user && user.role === 'Admin';
+
+        if (!token) window.location.href = 'index.html';
+
+        if (user) {
+            document.getElementById('userName').textContent = user.fullName || user.username;
+            document.getElementById('userRole').textContent = isAdmin ? 'مدير النظام' : 'مستخدم';
+            document.getElementById('userAvatar').textContent = (user.fullName || user.username).charAt(0).toUpperCase();
+            if (isAdmin) document.getElementById('currencyNavBtn').classList.remove('hidden');
+        }
+
+        function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+        setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString('ar-SY'); }, 1000);
+
+        let currentEntity = 'dashboard';
+        let currentPage = 1;
+        let totalPages = 1;
+        const pageSize = 10;
+        let customersList = [];
+        let packagesList = [];
+        let statusChartInstance = null;
+        let revenueChartInstance = null;
+
+        function updateFilterBar(entity) {
+            const filterBar = document.getElementById('filterBar');
+            const filterSelect = document.getElementById('filterSelect');
+            const searchInput = document.getElementById('searchInput');
+            
+            searchInput.value = '';
+            filterSelect.innerHTML = '<option value="">الكل</option>';
+
+            if (entity === 'customers') {
+                filterBar.classList.remove('hidden');
+                filterSelect.innerHTML += '<option value="true">نشط فقط</option><option value="false">موقوف فقط</option>';
+            } else if (entity === 'packages') {
+                filterBar.classList.remove('hidden');
+                filterSelect.innerHTML += `
+                    <option value="Received">تم الاستلام</option>
+                    <option value="InTransit">في الطريق</option>
+                    <option value="Arrived">وصلت</option>
+                    <option value="Delivered">تم التسليم</option>
+                `;
+            } else if (entity === 'shipments') {
+                filterBar.classList.remove('hidden');
+                filterSelect.innerHTML += `
+                    <option value="Loading">Loading</option>
+                    <option value="Departed">Departed</option>
+                    <option value="InTransit">InTransit</option>
+                    <option value="Arrived">Arrived</option>
+                    <option value="Closed">Closed</option>
+                `;
+            } else {
+                filterBar.classList.add('hidden');
+            }
+        }
+
+        function applyFilters() {
+            currentPage = 1;
+            fetchAndRenderTable();
+        }
+
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('filterSelect').value = '';
+            applyFilters();
+        }
+
+        async function fetchWithAuth(endpoint, options = {}) {
+            const defaultOptions = { headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } };
+            const finalOptions = { ...defaultOptions, ...options };
+            finalOptions.headers = { ...defaultOptions.headers, ...(options.headers || {}) };
+            const response = await fetch(`${API_BASE}${endpoint}`, finalOptions);
+            if (response.status === 401) { alert('انتهت الجلسة.'); logout(); return null; }
+            if (response.status === 403) { showAlert('ليس لديك صلاحية.', 'error'); return null; }
+            return response;
+        }
+
+        function showAlert(message, type = 'info') {
+            const box = document.getElementById('alertBox');
+            box.className = `mb-4 p-4 rounded-lg border font-semibold ${type === 'error' ? 'bg-red-100 text-red-700 border-red-300' : 'bg-green-100 text-green-700 border-green-300'}`;
+            box.textContent = message;
+            setTimeout(() => box.classList.add('hidden'), 6000);
+        }
+
+        async function loadData(entity) {
+            currentEntity = entity;
+            currentPage = 1;
+            
+            const titles = { 
+                'dashboard': 'لوحة القيادة', 
+                'customers': 'الزبائن', 
+                'packages': 'البضائع', 
+                'shipments': 'الشحنات', 
+                'billofladings': 'بوالص الشحن', 
+                'currencyrates': 'إدارة العملات' 
+            };
+            document.getElementById('pageTitle').textContent = titles[entity];
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-[#eab308]', 'text-[#0f172a]', 'font-bold');
+                if (btn.getAttribute('onclick').includes(entity)) btn.classList.add('bg-[#eab308]', 'text-[#0f172a]', 'font-bold');
+            });
+
+            const dashboardSection = document.getElementById('dashboardSection');
+            const tableSection = document.getElementById('tableSection');
+            const addBtn = document.getElementById('addBtn');
+            const paginationBar = document.getElementById('paginationBar');
+
+            if (entity === 'dashboard') {
+                dashboardSection.classList.remove('hidden');
+                tableSection.classList.add('hidden');
+                addBtn.classList.add('hidden');
+                await loadDashboard();
+            } else {
+                dashboardSection.classList.add('hidden');
+                tableSection.classList.remove('hidden');
+
+                updateFilterBar(entity);
+
+                if (entity === 'currencyrates') {
+                    addBtn.classList.add('hidden');
+                    paginationBar.classList.add('hidden');
+                } else {
+                    addBtn.classList.remove('hidden');
+                    paginationBar.classList.remove('hidden');
+                }
+                await fetchAndRenderTable();
+            }
+        }
+
+        async function loadDashboard() {
+            try {
+                const response = await fetchWithAuth('/dashboard/summary');
+                if (!response) return;
+                
+                const responseText = await response.text();
+                if (!responseText) throw new Error(`استجابة فارغة: ${response.status}`);
+                
+                const data = JSON.parse(responseText);
+                if (!response.ok) throw new Error(data.detail || 'فشل التحميل');
+
+                document.getElementById('statCustomers').textContent = data.totalCustomers;
+                document.getElementById('statPackages').textContent = data.totalPackages;
+                document.getElementById('statActiveShipments').textContent = data.activeShipments;
+                document.getElementById('statShipments').textContent = data.totalShipments;
+                document.getElementById('statDelivered').textContent = data.deliveredPackages;
+                document.getElementById('statPending').textContent = data.pendingPackages;
+
+                // إظهار/إخفاء بيانات الإيرادات بناءً على صلاحية المستخدم
+                if (isAdmin) {
+                    document.getElementById('revenueCard').classList.remove('hidden');
+                    document.getElementById('revenueChartContainer').classList.remove('hidden');
+                    
+                    document.getElementById('statRevenue').textContent = formatNumber(data.totalRevenueSyp) + ' ل.س';
+                    document.getElementById('statRevenueUsd').textContent = '≈ ' + formatNumber(data.totalRevenueUsd) + ' USD';
+
+                    const revLabels = data.revenueByCurrency.map(x => translateCurrency(x.currency));
+                    const revData = data.revenueByCurrency.map(x => x.amountInSyp);
+
+                    if (revenueChartInstance) revenueChartInstance.destroy();
+                    revenueChartInstance = new Chart(document.getElementById('revenueChart').getContext('2d'), {
+                        type: 'doughnut',
+                        data: { labels: revLabels.length > 0 ? revLabels : ['لا توجد إيرادات'], datasets: [{ data: revData.length > 0 ? revData : [1], backgroundColor: ['#eab308', '#3b82f6', '#10b981', '#ef4444'], borderWidth: 3, borderColor: '#fff' }] },
+                        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+                    });
+                } else {
+                    document.getElementById('revenueCard').classList.add('hidden');
+                    document.getElementById('revenueChartContainer').classList.add('hidden');
+                }
+
+                const statusLabels = data.packagesByStatus.map(x => translateStatus(x.status));
+                const statusData = data.packagesByStatus.map(x => x.count);
+
+                if (statusChartInstance) statusChartInstance.destroy();
+                statusChartInstance = new Chart(document.getElementById('statusChart').getContext('2d'), {
+                    type: 'bar',
+                    data: { labels: statusLabels, datasets: [{ label: 'عدد البضائع', data: statusData, backgroundColor: ['#3b82f6', '#eab308', '#10b981', '#8b5cf6'], borderRadius: 8 }] },
+                    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+                });
+
+                const topTbody = document.getElementById('topCustomersBody');
+                topTbody.innerHTML = '';
+                if (data.topCustomers.length === 0) {
+                    topTbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-gray-400">لا توجد بيانات</td></tr>';
+                } else {
+                    data.topCustomers.forEach((cust, index) => {
+                        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : (index + 1);
+                        topTbody.innerHTML += `
+                            <tr class="border-b hover:bg-gray-50 transition">
+                                <td class="px-4 py-3 text-center text-xl">${medal}</td>
+                                <td class="px-4 py-3 font-semibold text-[#0f172a]">${cust.customerName}</td>
+                                <td class="px-4 py-3 text-center font-bold text-[#eab308] text-lg">${cust.packageCount}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (error) {
+                showAlert('تعذر تحميل بيانات لوحة القيادة: ' + error.message, 'error');
+            }
+        }
+
+        function translateStatus(status) {
+            const map = { 'Received': 'تم الاستلام', 'InTransit': 'في الطريق', 'Arrived': 'وصلت', 'Delivered': 'تم التسليم' };
+            return map[status] || status;
+        }
+
+        function translateCurrency(curr) {
+            const map = { 'SYP': 'ليرة سورية', 'USD': 'دولار', 'EUR': 'يورو', 'TRY': 'ليرة تركية' };
+            return map[curr] || curr;
+        }
+
+        function formatNumber(n) {
+            return Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
+        }
+
+        async function fetchAndRenderTable() {
+            const tbody = document.getElementById('tableBody');
+            const thead = document.getElementById('tableHeader');
+            const emptyState = document.getElementById('emptyState');
+            
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-gray-400">جاري التحميل...</td></tr>`;
+            emptyState.classList.add('hidden');
+
+            try {
+                if (currentEntity === 'currencyrates') {
+                    const response = await fetchWithAuth('/currencyrates');
+                    if (!response) return;
+                    const items = await response.json();
+                    renderCurrencyRates(thead, tbody, items);
+                    return;
+                }
+
+                let url = `/${currentEntity}?page=${currentPage}&pageSize=${pageSize}`;
+                
+                const searchVal = document.getElementById('searchInput').value.trim();
+                if (searchVal) url += `&search=${encodeURIComponent(searchVal)}`;
+
+                const filterVal = document.getElementById('filterSelect').value;
+                if (filterVal) {
+                    if (currentEntity === 'customers') url += `&isActive=${filterVal}`;
+                    else if (currentEntity === 'packages' || currentEntity === 'shipments') url += `&status=${filterVal}`;
+                }
+
+                const response = await fetchWithAuth(url);
+                if (!response) return;
+                const data = await response.json();
+                const items = data.items || [];
+                totalPages = data.totalPages || 1;
+                updatePagination();
+
+                if (items.length === 0) {
+                    tbody.innerHTML = ''; thead.innerHTML = ''; emptyState.classList.remove('hidden');
+                    return;
+                }
+                renderHeaders(thead);
+                renderRows(tbody, items);
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-red-500">خطأ في الاتصال</td></tr>`;
+            }
+        }
+
+        function renderCurrencyRates(thead, tbody, items) {
+            thead.innerHTML = `<th class="px-6 py-4 font-bold">العملة</th><th class="px-6 py-4 font-bold">سعر الصرف</th><th class="px-6 py-4 font-bold">آخر تحديث</th><th class="px-6 py-4 font-bold">الإجراءات</th>`;
+            tbody.innerHTML = '';
+            items.forEach(item => {
+                let name = item.currency === 'SYP' ? 'ليرة سورية' : item.currency === 'USD' ? 'دولار أمريكي' : item.currency === 'EUR' ? 'يورو' : 'ليرة تركية';
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                        <td class="px-6 py-4 font-bold text-[#0f172a]">${name}</td>
+                        <td class="px-6 py-4 font-mono font-bold">${item.rateToSyp}</td>
+                        <td class="px-6 py-4">${new Date(item.updatedAt).toLocaleString('ar-SY')}</td>
+                        <td class="px-6 py-4">
+                            ${item.currency === 'SYP' ? '<span class="text-gray-400 font-bold">ثابت (1)</span>' : 
+                            `<button onclick="openEditCurrencyModal('${item.currency}', ${item.rateToSyp})" class="text-blue-600 hover:text-blue-800 font-bold text-xs transition">تحديث السعر</button>`}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderHeaders(thead) {
+            let headers = [];
+            switch(currentEntity) {
+                case 'customers': headers = ['الاسم', 'الهاتف', 'العنوان', 'الحالة', 'تاريخ الإضافة']; break;
+                case 'packages': headers = ['رقم التتبع', 'الوصف', 'المستلم', 'الوجهة', 'الحالة', 'أجرة التوصيل']; break;
+                case 'shipments': headers = ['رقم الشحنة', 'من', 'إلى', 'السائق', 'الحالة', 'البضائع']; break;
+                case 'billofladings': headers = ['رقم البوليصة', 'البضاعة', 'أجرة التوصيل', 'المصدر', 'التاريخ']; break;
+            }
+            headers.push('الإجراءات');
+            thead.innerHTML = headers.map(h => `<th class="px-6 py-4 font-bold border-b border-gray-700">${h}</th>`).join('');
+        }
+
+        function renderRows(tbody, items) {
+            tbody.innerHTML = '';
+            items.forEach(item => {
+                let rowHtml = '';
+                const currencyMap = { 'SYP': 'ل.س', 'USD': 'USD', 'EUR': 'EUR', 'TRY': 'TRY' };
+
+                switch(currentEntity) {
+                    case 'customers':
+                        rowHtml = `<td class="px-6 py-4 font-bold text-[#0f172a]">${item.fullName}</td><td class="px-6 py-4 font-semibold" dir="ltr">${item.phoneNumber}</td><td class="px-6 py-4">${item.address || '-'}</td><td class="px-6 py-4">${item.isActive ? '<span class="text-green-700 bg-green-100 px-2 py-1 rounded text-xs font-bold">نشط</span>' : '<span class="text-red-700 bg-red-100 px-2 py-1 rounded text-xs font-bold">موقوف</span>'}</td><td class="px-6 py-4">${new Date(item.createdAt).toLocaleDateString('ar-SY')}</td>`; break;
+                    case 'packages':
+                        const isDelivered = item.status === 'Delivered';
+                        const currStr = currencyMap[item.deliveryFeeCurrency] || 'ل.س';
+                        rowHtml = `<td class="px-6 py-4 font-mono font-bold text-[#0f172a]">${item.trackingNumber}</td><td class="px-6 py-4">${item.description}</td><td class="px-6 py-4">${item.receiverName}</td><td class="px-6 py-4">${item.destinationCity}</td><td class="px-6 py-4"><span class="${isDelivered ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'} px-2 py-1 rounded text-xs font-bold">${isDelivered ? 'تم التسليم' : item.status}</span></td><td class="px-6 py-4 font-bold text-green-700">${item.deliveryFee > 0 ? item.deliveryFee + ' ' + currStr : '-'}</td>`; break;
+                    case 'shipments':
+                        rowHtml = `<td class="px-6 py-4 font-mono font-bold text-[#0f172a]">${item.shipmentNumber}</td><td class="px-6 py-4">${item.fromCity}</td><td class="px-6 py-4">${item.toCity}</td><td class="px-6 py-4">${item.driverName || '-'}</td><td class="px-6 py-4"><span class="bg-gray-200 text-gray-800 px-2 py-1 rounded text-xs font-bold">${item.status}</span></td><td class="px-6 py-4 font-bold text-center text-lg text-[#0f172a]">${item.packageCount}</td>`; break;
+                    case 'billofladings':
+                        const currStrBOL = currencyMap[item.deliveryFeeCurrency] || 'ل.س';
+                        rowHtml = `<td class="px-6 py-4 font-mono font-bold text-[#0f172a]">${item.billNumber}</td><td class="px-6 py-4 font-semibold">${item.packageTrackingNumber}</td><td class="px-6 py-4 font-bold text-green-700">${item.deliveryFee} ${currStrBOL}</td><td class="px-6 py-4">${item.issuedBy || '-'}</td><td class="px-6 py-4">${new Date(item.issuedAt).toLocaleDateString('ar-SY')}</td>`; break;
+                }
+                
+                let topRowBtns = '';
+                let bottomRowBtns = '';
+
+                if (currentEntity === 'packages') {
+                    if (item.status !== 'Delivered') topRowBtns += `<button onclick="openDeliverModal(${item.id})" class="text-green-600 hover:text-green-800 font-bold text-xs transition">تسليم</button>`;
+                    topRowBtns += `<button onclick="printReceipt(${item.id})" class="text-[#eab308] hover:text-[#ca8a04] font-bold text-xs transition">إشعار استلام</button>`;
+                    topRowBtns += `<button onclick="printBOL(${item.id})" class="text-gray-600 hover:text-black font-bold text-xs transition">بوليصة</button>`;
+                    if (isAdmin) topRowBtns += `<button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-800 font-bold text-xs transition">حذف</button>`;
+                    topRowBtns += `<button onclick='openEditModal(${JSON.stringify(item).replace(/'/g, "&#39;")})' class="text-blue-600 hover:text-blue-800 font-bold text-xs transition">تعديل</button>`;
+
+                    bottomRowBtns += `<button onclick="sendWhatsApp('${item.receiverPhone}', '${item.trackingNumber}', '${item.receiverName}')" class="text-green-600 hover:text-green-800 font-bold text-xs transition">واتساب</button>`;
+                    bottomRowBtns += `<button onclick="sendSMS('${item.receiverPhone}', '${item.trackingNumber}', '${item.receiverName}')" class="text-blue-600 hover:text-blue-800 font-bold text-xs transition">SMS</button>`;
+                    bottomRowBtns += `<button onclick="callCustomer('${item.receiverPhone}')" class="text-orange-600 hover:text-orange-800 font-bold text-xs transition">اتصال</button>`;
+                    bottomRowBtns += `<button onclick="copyMessage('${item.receiverPhone}', '${item.trackingNumber}', '${item.receiverName}')" class="text-gray-600 hover:text-gray-800 font-bold text-xs transition">نسخ</button>`;
+
+                } else if (currentEntity === 'shipments') {
+                    if (item.packageCount > 0) topRowBtns += `<button onclick="printManifest(${item.id})" class="text-[#0f172a] hover:text-[#eab308] font-bold text-xs transition">كشف الشحنة</button>`;
+                    if (isAdmin) topRowBtns += `<button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-800 font-bold text-xs transition">حذف</button>`;
+                    topRowBtns += `<button onclick='openEditModal(${JSON.stringify(item).replace(/'/g, "&#39;")})' class="text-blue-600 hover:text-blue-800 font-bold text-xs transition">تعديل</button>`;
+                } else {
+                    if (isAdmin) topRowBtns += `<button onclick="deleteItem(${item.id})" class="text-red-600 hover:text-red-800 font-bold text-xs transition">حذف</button>`;
+                    topRowBtns += `<button onclick='openEditModal(${JSON.stringify(item).replace(/'/g, "&#39;")})' class="text-blue-600 hover:text-blue-800 font-bold text-xs transition">تعديل</button>`;
+                }
+
+                rowHtml += `<td class="px-6 py-4">
+                    <div class="flex items-center justify-end gap-2 mb-2 flex-wrap">${topRowBtns}</div>
+                    ${bottomRowBtns ? `<div class="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">${bottomRowBtns}</div>` : ''}
+                </td>`;
+                
+                tbody.innerHTML += `<tr class="hover:bg-gray-50 transition border-b border-gray-100">${rowHtml}</tr>`;
+            });
+        }
+
+        function updatePagination() {
+            document.getElementById('pageInfo').textContent = `الصفحة ${currentPage} من ${totalPages}`;
+            document.getElementById('prevBtn').disabled = currentPage <= 1;
+            document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+        }
+        function changePage(delta) { currentPage += delta; fetchAndRenderTable(); }
+
+        const modal = document.getElementById('modalBackdrop');
+        const form = document.getElementById('modalForm');
+        const deliverModal = document.getElementById('deliverModal');
+        const deliverForm = document.getElementById('deliverForm');
+
+        function toggleFormInputs(containerId, enable) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const inputs = container.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => { if (input.type !== 'hidden') input.disabled = !enable; });
+        }
+
+        function hideAllForms() {
+            ['form_customers', 'form_packages', 'form_shipments', 'form_billofladings'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+                toggleFormInputs(id, false);
+            });
+            document.getElementById('cust_isActiveGroup').classList.add('hidden');
+            document.getElementById('shp_statusGroup').classList.add('hidden');
+        }
+
+        async function prefetchDropdowns() {
+            const custRes = await fetchWithAuth('/customers?pageSize=100');
+            if (custRes && custRes.ok) customersList = (await custRes.json()).items;
+            const pkgRes = await fetchWithAuth('/packages?pageSize=100');
+            if (pkgRes && pkgRes.ok) packagesList = (await pkgRes.json()).items;
+        }
+
+        async function openAddModal() {
+            form.reset();
+            document.getElementById('editId').value = '';
+            document.getElementById('modalTitle').textContent = 'إضافة جديد';
+            hideAllForms();
+            await prefetchDropdowns();
+
+            if (currentEntity === 'customers') {
+                document.getElementById('form_customers').classList.remove('hidden');
+                toggleFormInputs('form_customers', true);
+            } else if (currentEntity === 'packages') {
+                document.getElementById('form_packages').classList.remove('hidden');
+                toggleFormInputs('form_packages', true);
+                document.getElementById('pkg_customerGroup').classList.remove('hidden');
+                const select = document.getElementById('pkg_customerId');
+                select.innerHTML = customersList.map(c => `<option value="${c.id}">${c.fullName} (${c.phoneNumber})</option>`).join('');
+                if(customersList.length === 0) { showAlert('يجب إضافة زبون أولاً', 'error'); return; }
+            } else if (currentEntity === 'shipments') {
+                document.getElementById('form_shipments').classList.remove('hidden');
+                toggleFormInputs('form_shipments', true);
+            } else if (currentEntity === 'billofladings') {
+                document.getElementById('form_billofladings').classList.remove('hidden');
+                toggleFormInputs('form_billofladings', true);
+                document.getElementById('bol_packageGroup').classList.remove('hidden');
+                const select = document.getElementById('bol_packageId');
+                select.innerHTML = packagesList.map(p => `<option value="${p.id}">${p.trackingNumber} - ${p.description}</option>`).join('');
+                if(packagesList.length === 0) showAlert('لا توجد بضائع متاحة', 'error');
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function openEditModal(item) {
+            form.reset();
+            document.getElementById('editId').value = item.id;
+            document.getElementById('modalTitle').textContent = 'تعديل';
+            hideAllForms();
+            
+            if (currentEntity === 'customers') {
+                document.getElementById('form_customers').classList.remove('hidden');
+                toggleFormInputs('form_customers', true);
+                document.getElementById('cust_fullName').value = item.fullName;
+                document.getElementById('cust_phoneNumber').value = item.phoneNumber;
+                document.getElementById('cust_address').value = item.address || '';
+                document.getElementById('cust_notes').value = item.notes || '';
+                document.getElementById('cust_isActiveGroup').classList.remove('hidden');
+                document.getElementById('cust_isActive').checked = item.isActive;
+            } else if (currentEntity === 'packages') {
+                document.getElementById('form_packages').classList.remove('hidden');
+                toggleFormInputs('form_packages', true);
+                document.getElementById('pkg_customerGroup').classList.add('hidden');
+                document.getElementById('pkg_description').value = item.description;
+                document.getElementById('pkg_weight').value = item.weight;
+                document.getElementById('pkg_receiverName').value = item.receiverName;
+                document.getElementById('pkg_receiverPhone').value = item.receiverPhone;
+                document.getElementById('pkg_destinationCity').value = item.destinationCity;
+                document.getElementById('pkg_notes').value = item.notes || '';
+            } else if (currentEntity === 'shipments') {
+                document.getElementById('form_shipments').classList.remove('hidden');
+                toggleFormInputs('form_shipments', true);
+                document.getElementById('shp_fromCity').value = item.fromCity;
+                document.getElementById('shp_toCity').value = item.toCity;
+                document.getElementById('shp_driverName').value = item.driverName || '';
+                document.getElementById('shp_driverPhone').value = item.driverPhone || '';
+                document.getElementById('shp_vehicleNumber').value = item.vehicleNumber || '';
+                document.getElementById('shp_statusGroup').classList.remove('hidden');
+                document.getElementById('shp_status').value = item.status;
+            } else if (currentEntity === 'billofladings') {
+                document.getElementById('form_billofladings').classList.remove('hidden');
+                toggleFormInputs('form_billofladings', true);
+                document.getElementById('bol_packageGroup').classList.add('hidden');
+                document.getElementById('bol_deliveryFee').value = item.deliveryFee;
+                document.getElementById('bol_currency').value = item.deliveryFeeCurrency;
+                document.getElementById('bol_issuedBy').value = item.issuedBy || '';
+                document.getElementById('bol_notes').value = item.notes || '';
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() { modal.classList.add('hidden'); }
+
+        function openDeliverModal(packageId) {
+            document.getElementById('deliverPackageId').value = packageId;
+            document.getElementById('deliverFee').value = '';
+            document.getElementById('deliverCurrency').value = 'SYP';
+            deliverModal.classList.remove('hidden');
+        }
+
+        function openEditCurrencyModal(currency, currentRate) {
+            document.getElementById('editCurrencyType').value = currency;
+            document.getElementById('editCurrencyRate').value = currentRate;
+            document.getElementById('currencyModal').classList.remove('hidden');
+        }
+
+        function printBOL(packageId) { window.open(`print.html?id=${packageId}`, '_blank'); }
+        function printManifest(shipmentId) { window.open(`print-shipment.html?id=${shipmentId}`, '_blank'); }
+        function printReceipt(packageId) { window.open(`print-receipt.html?id=${packageId}`, '_blank'); }
+
+        function sendWhatsApp(phone, trackingNumber, receiverName) {
+            let cleanPhone = phone.replace(/\D/g, '');
+            if (cleanPhone.startsWith('09')) cleanPhone = '963' + cleanPhone.substring(1);
+            else if (cleanPhone.startsWith('9') && cleanPhone.length === 9) cleanPhone = '963' + cleanPhone;
+            else if (!cleanPhone.startsWith('963')) cleanPhone = '963' + cleanPhone;
+            const message = `مرحباً ${receiverName}، تم استلام بضاعتك لدى شركة طيارة. رقم التتبع هو: ${trackingNumber}. يمكنك تتبع حالة الشحنة من خلال موقعنا.`;
+            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
+        }
+
+        function sendSMS(phone, trackingNumber, receiverName) {
+            let cleanPhone = phone.replace(/\D/g, '');
+            if (cleanPhone.startsWith('09')) cleanPhone = '963' + cleanPhone.substring(1);
+            const message = `مرحباً ${receiverName}، تم استلام بضاعتك لدى شركة طيارة. رقم التتبع: ${trackingNumber}.`;
+            window.location.href = `sms:+${cleanPhone}?body=${encodeURIComponent(message)}`;
+        }
+
+        function callCustomer(phone) {
+            let cleanPhone = phone.replace(/\D/g, '');
+            if (cleanPhone.startsWith('09')) cleanPhone = '963' + cleanPhone.substring(1);
+            window.location.href = `tel:+${cleanPhone}`;
+        }
+
+        function copyMessage(phone, trackingNumber, receiverName) {
+            const message = `مرحباً ${receiverName}، تم استلام بضاعتك لدى شركة طيارة. رقم التتبع هو: ${trackingNumber}. يمكنك تتبع حالة الشحنة من خلال موقعنا.`;
+            navigator.clipboard.writeText(message).then(() => {
+                showAlert('تم نسخ الرسالة إلى الحافظة', 'success');
+            }).catch(err => {
+                showAlert('فشل نسخ الرسالة', 'error');
+            });
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editId').value;
+            const isEdit = !!id;
+            const btn = document.getElementById('saveBtn');
+            btn.disabled = true; btn.textContent = 'جاري الحفظ...';
+
+            const payload = getPayload(isEdit);
+            if (!payload) { btn.disabled = false; btn.textContent = 'حفظ'; return; }
+
+            const endpoint = isEdit ? `/${currentEntity}/${id}` : `/${currentEntity}`;
+            const method = isEdit ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetchWithAuth(endpoint, { method, body: JSON.stringify(payload) });
+                if (!response) return;
+                if (response.ok) {
+                    showAlert(isEdit ? 'تم التعديل بنجاح' : 'تم الإضافة بنجاح', 'success');
+                    closeModal();
+                    fetchAndRenderTable();
+                } else {
+                    const errorData = await response.json();
+                    let msg = 'حدث خطأ.';
+                    if (errorData.errors) {
+                        const firstKey = Object.keys(errorData.errors)[0];
+                        msg = errorData.errors[firstKey][0];
+                    } else if (errorData.detail) { msg = errorData.detail; }
+                    showAlert(msg, 'error');
+                }
+            } catch (error) {
+                showAlert('تعذر الاتصال بالخادم.', 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = 'حفظ';
+            }
+        });
+
+        deliverForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const packageId = document.getElementById('deliverPackageId').value;
+            const fee = parseFloat(document.getElementById('deliverFee').value);
+            const currency = document.getElementById('deliverCurrency').value;
+            const btn = deliverForm.querySelector('button[type="submit"]');
+            btn.disabled = true; btn.textContent = 'جاري التسليم...';
+
+            try {
+                const response = await fetchWithAuth(`/packages/${packageId}/deliver`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ deliveryFee: fee, currency: currency })
+                });
+                
+                if (response && response.ok) {
+                    showAlert('تم تسجيل التسليم بنجاح', 'success');
+                    deliverModal.classList.add('hidden');
+                    fetchAndRenderTable();
+                } else if (response) {
+                    const errorData = await response.json();
+                    showAlert(errorData.detail || 'حدث خطأ', 'error');
+                }
+            } catch (error) {
+                showAlert('تعذر الاتصال بالخادم.', 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = 'تأكيد التسليم';
+            }
+        });
+
+        document.getElementById('currencyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const currency = document.getElementById('editCurrencyType').value;
+            const rate = parseFloat(document.getElementById('editCurrencyRate').value);
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true; btn.textContent = 'جاري الحفظ...';
+
+            try {
+                const response = await fetchWithAuth('/currencyrates', {
+                    method: 'PUT',
+                    body: JSON.stringify({ currency: currency, rateToSyp: rate })
+                });
+                
+                if (response && response.ok) {
+                    showAlert('تم تحديث سعر الصرف بنجاح', 'success');
+                    document.getElementById('currencyModal').classList.add('hidden');
+                    fetchAndRenderTable();
+                } else if (response) {
+                    const errorData = await response.json();
+                    showAlert(errorData.detail || 'حدث خطأ', 'error');
+                }
+            } catch (error) {
+                showAlert('تعذر الاتصال بالخادم.', 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = 'حفظ';
+            }
+        });
+
+        function getPayload(isEdit) {
+            if (currentEntity === 'customers') {
+                const p = { fullName: document.getElementById('cust_fullName').value.trim(), phoneNumber: document.getElementById('cust_phoneNumber').value.trim(), address: document.getElementById('cust_address').value.trim() || null, notes: document.getElementById('cust_notes').value.trim() || null };
+                if (isEdit) p.isActive = document.getElementById('cust_isActive').checked;
+                return p;
+            }
+            if (currentEntity === 'packages') {
+                const p = { description: document.getElementById('pkg_description').value.trim(), weight: parseFloat(document.getElementById('pkg_weight').value), receiverName: document.getElementById('pkg_receiverName').value.trim(), receiverPhone: document.getElementById('pkg_receiverPhone').value.trim(), destinationCity: document.getElementById('pkg_destinationCity').value.trim(), notes: document.getElementById('pkg_notes').value.trim() || null };
+                if (!isEdit) {
+                    const cid = document.getElementById('pkg_customerId').value;
+                    if (!cid) return null;
+                    p.customerId = parseInt(cid);
+                }
+                return p;
+            }
+            if (currentEntity === 'shipments') {
+                const p = { fromCity: document.getElementById('shp_fromCity').value.trim(), toCity: document.getElementById('shp_toCity').value.trim(), driverName: document.getElementById('shp_driverName').value.trim() || null, driverPhone: document.getElementById('shp_driverPhone').value.trim() || null, vehicleNumber: document.getElementById('shp_vehicleNumber').value.trim() || null };
+                if (isEdit) {
+                    const statusVal = document.getElementById('shp_status').value;
+                    if (statusVal) p.status = statusVal;
+                }
+                return p;
+            }
+            if (currentEntity === 'billofladings') {
+                const p = { 
+                    deliveryFee: parseFloat(document.getElementById('bol_deliveryFee').value), 
+                    deliveryFeeCurrency: document.getElementById('bol_currency').value, 
+                    issuedBy: document.getElementById('bol_issuedBy').value.trim() || null, 
+                    notes: document.getElementById('bol_notes').value.trim() || null 
+                };
+                if (!isEdit) {
+                    const pid = document.getElementById('bol_packageId').value;
+                    if (!pid) return null;
+                    p.packageId = parseInt(pid);
+                }
+                return p;
+            }
+            return null;
+        }
+
+        async function deleteItem(id) {
+            if (!confirm('هل أنت متأكد من الحذف؟')) return;
+            const response = await fetchWithAuth(`/${currentEntity}/${id}`, { method: 'DELETE' });
+            if (!response) return;
+            if (response.ok || response.status === 204) {
+                showAlert('تم الحذف بنجاح', 'success');
+                fetchAndRenderTable();
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                let msg = 'حدث خطأ أثناء الحذف.';
+                if (errorData.detail) msg = errorData.detail;
+                else if (errorData.errors) {
+                    const firstKey = Object.keys(errorData.errors)[0];
+                    msg = errorData.errors[firstKey][0];
+                }
+                showAlert(msg, 'error');
+            }
+        }
+
+        loadData('dashboard');
+    </script>
+</body>
+</html>

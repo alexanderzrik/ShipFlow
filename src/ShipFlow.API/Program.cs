@@ -11,7 +11,9 @@ using ShipFlow.Application.Common.Interfaces;
 using ShipFlow.Application.Common.Settings;
 using ShipFlow.Application.Features.Auth.Services;
 using ShipFlow.Application.Features.BillOfLadings.Services;
+using ShipFlow.Application.Features.Currencies.Services;
 using ShipFlow.Application.Features.Customers.Services;
+using ShipFlow.Application.Features.Dashboard.Services;
 using ShipFlow.Application.Features.Packages.Services;
 using ShipFlow.Application.Features.Shipments.Services;
 using ShipFlow.Infrastructure.Common.Services;
@@ -19,30 +21,26 @@ using ShipFlow.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1) Database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<IApplicationDbContext>(sp =>
     sp.GetRequiredService<ApplicationDbContext>());
 
-// 2) Data Services
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IPackageService, PackageService>();
 builder.Services.AddScoped<IShipmentService, ShipmentService>();
 builder.Services.AddScoped<IBillOfLadingService, BillOfLadingService>();
+builder.Services.AddScoped<ICurrencyRateService, CurrencyRateService>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 
-// 3) Auth Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IPasswordHasher, BCryptPasswordHasher>();
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
-// 4) JWT Settings
 builder.Services.Configure<JwtSettings>(
     builder.Configuration.GetSection(JwtSettings.SectionName));
 
-// 5) JWT Authentication
 var jwtSettings = builder.Configuration
     .GetSection(JwtSettings.SectionName)
     .Get<JwtSettings>()
@@ -70,24 +68,18 @@ builder.Services
         };
     });
 
-// 6) Authorization
 builder.Services.AddAuthorization();
 
-// 7) CORS (للسماح للـFrontend بالاتصال)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
     });
 });
 
-// 8) Validators
 builder.Services.AddValidatorsFromAssembly(typeof(IApplicationDbContext).Assembly);
 
-// 9) Controllers + Filters + JSON
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ValidationFilter>();
@@ -97,7 +89,6 @@ builder.Services.AddControllers(options =>
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
-// 10) Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -129,26 +120,23 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// Seed Data (Development only)
-if (app.Environment.IsDevelopment())
+// ⚠️ تم تعطيل Seed Data (البيانات موجودة في السحابة بالفعل)
+/*
+using (var seedScope = app.Services.CreateScope())
 {
-    using var seedScope = app.Services.CreateScope();
     var seedContext = seedScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await DbSeeder.SeedAsync(seedContext);
 }
+*/
 
-// Pipeline
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
-// ⚠️ CORS يجب أن يكون قبل Authentication و Authorization
 app.UseCors("AllowAll");
 
 app.UseAuthentication();

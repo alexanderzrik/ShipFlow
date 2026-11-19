@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>كشف شحنة - طيارة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background: #f3f4f6; }
+        @media print {
+            body { background: white; margin: 0; padding: 0; }
+            .no-print { display: none !important; }
+            .print-container { box-shadow: none !important; border: none !important; max-width: 100% !important; margin: 0 !important; }
+            table { page-break-inside: auto; }
+            tr { page-break-inside: avoid; page-break-after: auto; }
+        }
+    </style>
+</head>
+<body class="p-8 flex flex-col items-center">
+
+    <div class="no-print mb-6 flex gap-4">
+        <button onclick="window.print()" class="bg-[#eab308] text-[#0f172a] px-8 py-3 rounded-lg font-bold shadow hover:bg-[#ca8a04]">طباعة الكشف</button>
+        <button onclick="window.close()" class="bg-gray-500 text-white px-8 py-3 rounded-lg font-bold shadow hover:bg-gray-600">إغلاق</button>
+    </div>
+
+    <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-300 w-full max-w-4xl print-container">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-center border-b-4 border-[#0f172a] pb-4 mb-6">
+            <div class="text-right">
+                <h1 class="text-4xl font-bold text-[#0f172a]">طيارة</h1>
+                <p class="text-gray-500 font-semibold">لإدارة الشحن</p>
+            </div>
+            <img src="logo.png" alt="Logo" class="w-24 h-24 object-contain">
+            <div class="text-left text-sm">
+                <p class="font-bold text-gray-600 mb-1">رقم الشحنة: <span class="text-xl font-mono text-[#eab308]" id="s_number">...</span></p>
+                <p class="font-bold text-gray-600">من: <span id="s_from" class="text-black">...</span></p>
+                <p class="font-bold text-gray-600">إلى: <span id="s_to" class="text-black">...</span></p>
+                <p class="font-bold text-gray-600">السائق: <span id="s_driver" class="text-black">...</span></p>
+            </div>
+        </div>
+
+        <div class="text-center mb-4">
+            <h2 class="text-2xl font-bold text-gray-800 border-2 border-gray-800 inline-block px-6 py-1 rounded-lg">كشف شحنة تفصيلي</h2>
+        </div>
+
+        <!-- Items table -->
+        <table class="w-full text-right border-collapse border border-gray-400 mb-8 text-sm">
+            <thead>
+                <tr class="bg-[#0f172a] text-white">
+                    <th class="border border-gray-400 p-2">#</th>
+                    <th class="border border-gray-400 p-2">رقم التتبع</th>
+                    <th class="border border-gray-400 p-2">المستلم</th>
+                    <th class="border border-gray-400 p-2">الهاتف</th>
+                    <th class="border border-gray-400 p-2">الوجهة</th>
+                    <th class="border border-gray-400 p-2">الوصف</th>
+                    <th class="border border-gray-400 p-2">الوزن</th>
+                    <th class="border border-gray-400 p-2">ملاحظات</th>
+                </tr>
+            </thead>
+            <tbody id="manifest_body">
+                <!-- سيتم تعبئتها ديناميكياً -->
+            </tbody>
+            <tfoot>
+                <tr class="bg-gray-100 font-bold">
+                    <td colspan="6" class="border border-gray-400 p-2 text-left">الإجمالي:</td>
+                    <td class="border border-gray-400 p-2 text-[#0f172a]" id="total_weight">0 كغ</td>
+                    <td class="border border-gray-400 p-2" id="total_count">0 طرد</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <!-- Signatures -->
+        <div class="flex justify-between mt-16 px-8">
+            <div class="text-center">
+                <p class="font-bold mb-8">توقيع المستلم</p>
+                <div class="border-t border-black w-32"></div>
+            </div>
+            <div class="text-center">
+                <p class="font-bold mb-8">توقيع السائق</p>
+                <div class="border-t border-black w-32"></div>
+            </div>
+            <div class="text-center">
+                <p class="font-bold mb-8">ختم الشركة</p>
+                <div class="border-t border-black w-32"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        const urlParams = new URLSearchParams(window.location.search);
+        const shipmentId = urlParams.get('id');
+
+        if (!token || !shipmentId) {
+            alert('غير مصرح أو رقم شحنة غير موجود');
+            window.close();
+        }
+
+        async function loadData() {
+            try {
+                // جلب بيانات الشحنة
+                const sRes = await fetch(`http://localhost:5074/api/shipments/${shipmentId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if(!sRes.ok) throw new Error('فشل جلب الشحنة');
+                const shipment = await sRes.json();
+                
+                document.getElementById('s_number').textContent = shipment.shipmentNumber;
+                document.getElementById('s_from').textContent = shipment.fromCity;
+                document.getElementById('s_to').textContent = shipment.toCity;
+                document.getElementById('s_driver').textContent = shipment.driverName || 'غير محدد';
+
+                // جلب بضائع الشحنة
+                const pRes = await fetch(`http://localhost:5074/api/shipments/${shipmentId}/packages`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if(!pRes.ok) throw new Error('فشل جلب البضائع');
+                const packages = await pRes.json();
+                
+                const tbody = document.getElementById('manifest_body');
+                let totalWeight = 0;
+                
+                if (packages.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" class="text-center p-4">لا توجد بضائع في هذه الشحنة</td></tr>`;
+                    return;
+                }
+
+                packages.forEach((pkg, index) => {
+                    totalWeight += pkg.weight;
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="border border-gray-400 p-2 text-center">${index + 1}</td>
+                            <td class="border border-gray-400 p-2 font-mono text-xs">${pkg.trackingNumber}</td>
+                            <td class="border border-gray-400 p-2">${pkg.receiverName}</td>
+                            <td class="border border-gray-400 p-2 font-mono" dir="ltr">${pkg.receiverPhone}</td>
+                            <td class="border border-gray-400 p-2">${pkg.destinationCity}</td>
+                            <td class="border border-gray-400 p-2">${pkg.description}</td>
+                            <td class="border border-gray-400 p-2 text-center">${pkg.weight}</td>
+                            <td class="border border-gray-400 p-2 text-xs">${pkg.notes || ''}</td>
+                        </tr>
+                    `;
+                });
+
+                document.getElementById('total_weight').textContent = totalWeight.toFixed(2) + ' كغ';
+                document.getElementById('total_count').textContent = packages.length + ' طرد';
+
+            } catch (err) {
+                alert('حدث خطأ في تحميل البيانات');
+                console.error(err);
+            }
+        }
+        
+        loadData();
+    </script>
+</body>
+</html>

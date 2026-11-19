@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تتبع الشحنة - طيارة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Cairo', sans-serif; }</style>
+</head>
+<body class="bg-[#0f172a] min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 border-t-8 border-[#eab308]">
+        
+        <div class="text-center mb-8">
+            <img src="logo.png" alt="شعار طيارة" class="w-24 h-24 mx-auto mb-4 object-contain">
+            <h1 class="text-3xl font-bold text-[#0f172a] mb-2">تتبع بضاعتك</h1>
+            <p class="text-gray-500 text-sm">أدخل رقم التتبع لمعرفة حالة الشحنة</p>
+        </div>
+
+        <form id="trackForm" class="flex gap-2 mb-6">
+            <input type="text" id="trackingNumber" required placeholder="مثال: SHP-SEED-0001" 
+                   class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#eab308]">
+            <button type="submit" class="bg-[#eab308] hover:bg-[#ca8a04] text-[#0f172a] font-bold px-6 py-3 rounded-lg transition">
+                بحث
+            </button>
+        </form>
+
+        <div id="errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm text-center"></div>
+
+        <!-- نتائج البحث (مخفية في البداية) -->
+        <div id="resultBox" class="hidden border border-gray-200 rounded-xl p-6 bg-gray-50">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <span class="text-gray-500 font-semibold">رقم التتبع:</span>
+                <span class="font-mono font-bold text-lg text-[#0f172a]" id="res_tracking">...</span>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-6 text-sm">
+                <div>
+                    <p class="text-gray-500">المرسل:</p>
+                    <p class="font-bold text-[#0f172a]" id="res_sender">...</p>
+                </div>
+                <div>
+                    <p class="text-gray-500">الوجهة:</p>
+                    <p class="font-bold text-[#0f172a]" id="res_dest">...</p>
+                </div>
+            </div>
+
+            <!-- شريط الحالة (Timeline) -->
+            <div class="relative pl-8 border-r-2 border-gray-300 space-y-8" id="timeline">
+                <!-- سيتم تعبئته ديناميكياً -->
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ملاحظة: هذا الرابط سيعمل فقط إذا كان الـ API يعمل
+        const API_BASE = '/api';
+
+        document.getElementById('trackForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const trackingNumber = document.getElementById('trackingNumber').value.trim();
+            const errorDiv = document.getElementById('errorMessage');
+            const resultBox = document.getElementById('resultBox');
+            
+            errorDiv.classList.add('hidden');
+            resultBox.classList.add('hidden');
+
+            try {
+                const response = await fetch(`${API_BASE}/packages/track/${trackingNumber}`);
+                
+                if (!response.ok) {
+                    if (response.status === 404) throw new Error('عذراً، رقم التتبع غير صحيح أو غير موجود.');
+                    throw new Error('حدث خطأ في الاتصال بالخادم.');
+                }
+
+                const pkg = await response.json();
+                
+                document.getElementById('res_tracking').textContent = pkg.trackingNumber;
+                document.getElementById('res_sender').textContent = pkg.customerName;
+                document.getElementById('res_dest').textContent = pkg.destinationCity;
+
+                // رسم شريط الحالة
+                const timeline = document.getElementById('timeline');
+                timeline.innerHTML = '';
+                
+                const statuses = [
+                    { key: 'Received', label: 'تم الاستلام بالمستودع' },
+                    { key: 'InTransit', label: 'في الطريق إلى الوجهة' },
+                    { key: 'Arrived', label: 'وصلت إلى مستودع الوجهة' },
+                    { key: 'Delivered', label: 'تم التسليم للزبون' }
+                ];
+                
+                const currentIndex = statuses.findIndex(s => s.key === pkg.status);
+                
+                statuses.forEach((status, index) => {
+                    const isPassed = index <= currentIndex;
+                    const isCurrent = index === currentIndex;
+                    
+                    const color = isPassed ? 'bg-[#eab308] border-[#eab308]' : 'bg-white border-gray-300';
+                    const textColor = isPassed ? 'text-[#0f172a] font-bold' : 'text-gray-400';
+                    
+                    timeline.innerHTML += `
+                        <div class="relative">
+                            <div class="absolute -right-[41px] top-1 w-5 h-5 rounded-full border-4 ${color}"></div>
+                            <p class="${textColor}">${status.label}</p>
+                            ${isCurrent ? '<p class="text-xs text-[#eab308] mt-1 font-semibold">(الحالة الحالية)</p>' : ''}
+                        </div>
+                    `;
+                });
+
+                resultBox.classList.remove('hidden');
+
+            } catch (error) {
+                errorDiv.textContent = error.message;
+                errorDiv.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
